@@ -1701,6 +1701,8 @@ static int str_packsize (lua_State *L) {
   Header h;
   const char *fmt = luaL_checkstring(L, 1);  /* format string */
   size_t totalsize = 0;  /* accumulate total size of result */
+  size_t maxsize = MAXSIZE;
+  if (get_rep_limited()) maxsize = get_rep_max(); /* jail */
   initheader(L, &h);
   while (*fmt != '\0') {
     int size, ntoalign;
@@ -1708,7 +1710,7 @@ static int str_packsize (lua_State *L) {
     luaL_argcheck(L, opt != Kstring && opt != Kzstr, 1,
                      "variable-length format");
     size += ntoalign;  /* total space used by option */
-    luaL_argcheck(L, totalsize <= MAXSIZE - size, 1,
+    luaL_argcheck(L, totalsize <= maxsize - size, 1,
                      "format result too large");
     totalsize += size;
   }

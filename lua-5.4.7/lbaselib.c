@@ -20,6 +20,8 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+#include "jail.h"
+
 
 static int luaB_print (lua_State *L) {
   int n = lua_gettop(L);  /* number of arguments */
@@ -203,6 +205,12 @@ static int luaB_collectgarbage (lua_State *L) {
   static const int optsnum[] = {LUA_GCSTOP, LUA_GCRESTART, LUA_GCCOLLECT,
     LUA_GCCOUNT, LUA_GCSTEP, LUA_GCSETPAUSE, LUA_GCSETSTEPMUL,
     LUA_GCISRUNNING, LUA_GCGEN, LUA_GCINC};
+  /* jail */
+  if (l_unlikely(get_deny_collectgarbage())) {
+    lua_pushnil(L);
+    return 1;
+  }
+
   int o = optsnum[luaL_checkoption(L, 1, "collect", opts)];
   switch (o) {
     case LUA_GCCOUNT: {

@@ -188,7 +188,8 @@ impl Build {
             .file(source_dir.join("lundump.c"))
             // skipped: lutf8lib.c (>= 5.3)
             .file(source_dir.join("lvm.c"))
-            .file(source_dir.join("lzio.c"));
+            .file(source_dir.join("lzio.c"))
+            .file(source_dir.join("jail.c"));
 
         match version {
             Lua51 => {}

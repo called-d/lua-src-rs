@@ -22,6 +22,8 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+#include "jail.h"
+
 
 
 
@@ -259,6 +261,18 @@ static LStream *newfile (lua_State *L) {
 
 
 static void opencheck (lua_State *L, const char *fname, const char *mode) {
+  /* jail */
+  const char *root = get_ioroot();
+  if (l_unlikely(root && !is_in_dir_allow_tmp(root, fname)))
+    return luaL_error(L, "cannot open file '%s' (%s)", fname, strerror(1));
+  if (strchr(mode, 'r') != NULL) {
+    if (!test_read_extension_allowlist(fname))
+      return luaL_error(L, "cannot open file '%s' (%s)", fname, "extension is not in allowlist");
+  } else {
+    if (!test_write_extension_allowlist(fname))
+      return luaL_error(L, "cannot open file '%s' (%s)", fname, "extension is not in allowlist");
+  }
+
   LStream *p = newfile(L);
   p->f = fopen(fname, mode);
   if (l_unlikely(p->f == NULL))
@@ -268,7 +282,22 @@ static void opencheck (lua_State *L, const char *fname, const char *mode) {
 
 static int io_open (lua_State *L) {
   const char *filename = luaL_checkstring(L, 1);
+  /* jail */
+  const char *root = get_ioroot();
+  if (l_unlikely(root && !is_in_dir_allow_tmp(root, filename))) {
+    errno = 1;
+    return luaL_fileresult(L, 0, filename);
+  }
+
   const char *mode = luaL_optstring(L, 2, "r");
+  /* jail */
+  if (strchr(mode, 'r') != NULL) {
+    if (!test_read_extension_allowlist(filename))
+      return luaL_error(L, "cannot open file '%s' (%s)", filename, "extension is not in allowlist");
+  } else {
+    if (!test_write_extension_allowlist(filename))
+      return luaL_error(L, "cannot open file '%s' (%s)", filename, "extension is not in allowlist");
+  }
   LStream *p = newfile(L);
   const char *md = mode;  /* to traverse/check mode */
   luaL_argcheck(L, l_checkmode(md), 2, "invalid mode");
@@ -293,6 +322,11 @@ static int io_popen (lua_State *L) {
   const char *mode = luaL_optstring(L, 2, "r");
   LStream *p = newprefile(L);
   luaL_argcheck(L, l_checkmodep(mode), 2, "invalid mode");
+  /* jail */
+  if (get_deny_popen()) {
+    errno = 1;
+    return luaL_fileresult(L, 0, filename);
+  }
   errno = 0;
   p->f = l_popen(L, filename, mode);
   p->closef = &io_pclose;
@@ -301,6 +335,11 @@ static int io_popen (lua_State *L) {
 
 
 static int io_tmpfile (lua_State *L) {
+  if (get_deny_tmp()) { /* jail */
+    errno = 1;
+    return luaL_fileresult(L, 0, NULL);
+  }
+
   LStream *p = newfile(L);
   errno = 0;
   p->f = tmpfile();
@@ -833,7 +872,9 @@ LUAMOD_API int luaopen_io (lua_State *L) {
   luaL_newlib(L, iolib);  /* new module */
   createmeta(L);
   /* create (and set) default files */
-  createstdfile(L, stdin, IO_INPUT, "stdin");
+  if (!get_deny_open_stdin()) { /* jail */
+    createstdfile(L, stdin, IO_INPUT, "stdin");
+  }
   createstdfile(L, stdout, IO_OUTPUT, "stdout");
   createstdfile(L, stderr, NULL, "stderr");
   return 1;
