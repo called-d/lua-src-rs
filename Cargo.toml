@@ -1,9 +1,9 @@
 [package]
 name = "lua-src"
-version = "547.0.0"
+version = "548.1.1"
 authors = ["Aleksandr Orlenko <zxteam@protonmail.com>"]
 edition = "2021"
-repository = "https://github.com/khvzak/lua-src-rs"
+repository = "https://github.com/mlua-rs/lua-src-rs"
 keywords = ["lua", "lua51", "lua52", "lua53", "lua54"]
 readme = "README.md"
 license = "MIT"
@@ -18,4 +18,8 @@ ucid = [] # accept UniCode IDentifiers
 members = ["testcrate"]
 
 [dependencies]
-cc = "1.0.54"
+cc = "1.2"
+
+[dev-dependencies]
+target-lexicon = "0.13"
+tempfile = "3.0"
