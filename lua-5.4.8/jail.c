@@ -26,7 +26,7 @@ int is_in_dir_allow_tmp (const char *root, const char *f) {
   if (is_in || get_deny_tmp()) return is_in;
   /* allow tmp */
 #if defined(LUA_USE_POSIX)
-  return is_in_dir("/tmp/", f));
+  return is_in_dir("/tmp/", f);
 #else
   const char *tmproot = tmp_dir_root();
   is_in = is_in_dir(tmproot, f);
@@ -115,14 +115,14 @@ LUALIB_API void allow_collectgarbage() { deny_collectgarbage_ = 0; }
 LUALIB_API void deny_collectgarbage() { deny_collectgarbage_ = 1; }
 int get_deny_collectgarbage() { return deny_collectgarbage_; }
 
-LUALIB_API void deny_require() { deny_require_ = 0; }
-LUALIB_API void allow_require() { deny_require_ = 1; }
+LUALIB_API void deny_require() { deny_require_ = 1; }
+LUALIB_API void allow_require() { deny_require_ = 0; }
 int get_deny_require() { return deny_require_; }
-LUALIB_API void deny_loadlib() { deny_loadlib_ = 0; };
-LUALIB_API void allow_loadlib() { deny_loadlib_ = 1; };
+LUALIB_API void deny_loadlib() { deny_loadlib_ = 1; };
+LUALIB_API void allow_loadlib() { deny_loadlib_ = 0; };
 int get_deny_loadlib() { return deny_loadlib_; }
-LUALIB_API void deny_searchpath() { deny_searchpath_ = 0; };
-LUALIB_API void allow_searchpath() { deny_searchpath_ = 1; };
+LUALIB_API void deny_searchpath() { deny_searchpath_ = 1; };
+LUALIB_API void allow_searchpath() { deny_searchpath_ = 0; };
 int get_deny_searchpath() { return deny_searchpath_; }
 
 LUALIB_API const char *set_path_override(const char *path_override_) {
