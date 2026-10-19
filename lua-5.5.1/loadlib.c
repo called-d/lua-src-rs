@@ -24,6 +24,8 @@
 #include "lualib.h"
 #include "llimits.h"
 
+#include "jail.h"
+
 
 /*
 ** LUA_CSUBSEP is the character that replaces dots in submodule names
@@ -299,6 +301,19 @@ static void setpath (lua_State *L, const char *fieldname,
     luaL_pushresult(&b);
   }
   setprogdir(L);
+
+  /* jail */
+  const char *path_override = lua_getjail(L)->path_override;
+  const char *cpath_override = lua_getjail(L)->cpath_override;
+  if ((path_override != NULL) && (strcmp(fieldname, "path") == 0)) {
+    lua_pop(L, 1);
+    lua_pushstring(L, path_override);
+  }
+  if ((cpath_override != NULL) && (strcmp(fieldname, "cpath") == 0)) {
+    lua_pop(L, 1);
+    lua_pushstring(L, cpath_override);
+  }
+
   lua_setfield(L, -3, fieldname);  /* package[fieldname] = path value */
   lua_pop(L, 1);  /* pop versioned variable name ('nver') */
 }
@@ -403,6 +418,11 @@ static int lookforfunc (lua_State *L, const char *path, const char *sym) {
 
 
 static int ll_loadlib (lua_State *L) {
+  /* jail */
+  if (l_unlikely(lua_getjail(L)->deny_loadlib)) {
+    lua_pushnil(L);
+    return 1;
+  }
   const char *path = luaL_checkstring(L, 1);
   const char *init = luaL_checkstring(L, 2);
   int stat = lookforfunc(L, path, init);
@@ -500,6 +520,11 @@ static const char *searchpath (lua_State *L, const char *name,
 
 
 static int ll_searchpath (lua_State *L) {
+  /* jail */
+  if (l_unlikely(lua_getjail(L)->deny_searchpath)) {
+    lua_pushnil(L);
+    return 1;
+  }
   const char *f = searchpath(L, luaL_checkstring(L, 1),
                                 luaL_checkstring(L, 2),
                                 luaL_optstring(L, 3, "."),
@@ -519,6 +544,17 @@ static const char *findfile (lua_State *L, const char *name,
   const char *path;
   lua_getfield(L, lua_upvalueindex(1), pname);
   path = lua_tostring(L, -1);
+
+  /* jail */
+  const char *path_override = lua_getjail(L)->path_override;
+  const char *cpath_override = lua_getjail(L)->cpath_override;
+  if ((path_override != NULL) && (strcmp(pname, "path") == 0)) {
+    path = path_override;
+  }
+  if ((cpath_override != NULL) && (strcmp(pname, "cpath") == 0)) {
+    path = cpath_override;
+  }
+
   if (l_unlikely(path == NULL))
     luaL_error(L, "'package.%s' must be a string", pname);
   return searchpath(L, name, path, ".", dirsep);
@@ -648,6 +684,11 @@ static void findloader (lua_State *L, const char *name) {
 
 
 static int ll_require (lua_State *L) {
+  /* jail */
+  if (l_unlikely(lua_getjail(L)->deny_require)) {
+    lua_pushnil(L);
+    return 1;
+  }
   const char *name = luaL_checkstring(L, 1);
   lua_settop(L, 1);  /* LOADED table will be at index 2 */
   lua_getfield(L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
@@ -717,6 +758,11 @@ static void createsearcherstable (lua_State *L) {
     lua_pushcclosure(L, searchers[i], 1);
     lua_rawseti(L, -2, i+1);
   }
+
+  /* jail */
+  lua_Package_Searchers_Modifier f = lua_getjail(L)->package_searchers_modifier;
+  if (f != NULL) f(L);
+
   lua_setfield(L, -2, "searchers");  /* put it in field 'searchers' */
 }
 

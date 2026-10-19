@@ -19,6 +19,8 @@
 
 #include "lauxlib.h"
 #include "lualib.h"
+
+#include "jail.h"
 #include "llimits.h"
 
 
@@ -205,6 +207,12 @@ static int luaB_collectgarbage (lua_State *L) {
   static const char optsnum[] = {LUA_GCSTOP, LUA_GCRESTART, LUA_GCCOLLECT,
     LUA_GCCOUNT, LUA_GCSTEP, LUA_GCISRUNNING, LUA_GCGEN, LUA_GCINC,
     LUA_GCPARAM};
+  /* jail */
+  if (l_unlikely(lua_getjail(L)->deny_collectgarbage)) {
+    lua_pushnil(L);
+    return 1;
+  }
+
   int o = optsnum[luaL_checkoption(L, 1, "collect", opts)];
   switch (o) {
     case LUA_GCCOUNT: {

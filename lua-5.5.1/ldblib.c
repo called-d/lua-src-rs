@@ -18,6 +18,8 @@
 
 #include "lauxlib.h"
 #include "lualib.h"
+
+#include "jail.h"
 #include "llimits.h"
 
 
@@ -40,12 +42,22 @@ static void checkstack (lua_State *L, lua_State *L1, int n) {
 
 
 static int db_getregistry (lua_State *L) {
+  /* jail */
+  if (lua_getjail(L)->debug_option.deny_getregistry) {
+    lua_pushnil(L);
+    return 1;
+  }
   lua_pushvalue(L, LUA_REGISTRYINDEX);
   return 1;
 }
 
 
 static int db_getmetatable (lua_State *L) {
+  /* jail */
+  if (lua_getjail(L)->debug_option.deny_getmetatable) {
+    lua_pushnil(L);
+    return 1;
+  }
   luaL_checkany(L, 1);
   if (!lua_getmetatable(L, 1)) {
     lua_pushnil(L);  /* no metatable */
@@ -55,6 +67,11 @@ static int db_getmetatable (lua_State *L) {
 
 
 static int db_setmetatable (lua_State *L) {
+  /* jail */
+  if (lua_getjail(L)->debug_option.deny_setmetatable) {
+    lua_pushnil(L);
+    return 1;
+  }
   int t = lua_type(L, 2);
   luaL_argexpected(L, t == LUA_TNIL || t == LUA_TTABLE, 2, "nil or table");
   lua_settop(L, 2);
@@ -64,6 +81,11 @@ static int db_setmetatable (lua_State *L) {
 
 
 static int db_getuservalue (lua_State *L) {
+  /* jail */
+  if (lua_getjail(L)->debug_option.deny_getuservalue) {
+    lua_pushnil(L);
+    return 1;
+  }
   int n = (int)luaL_optinteger(L, 2, 1);
   if (lua_type(L, 1) != LUA_TUSERDATA)
     luaL_pushfail(L);
@@ -76,6 +98,11 @@ static int db_getuservalue (lua_State *L) {
 
 
 static int db_setuservalue (lua_State *L) {
+  /* jail */
+  if (lua_getjail(L)->debug_option.deny_setuservalue) {
+    lua_pushnil(L);
+    return 1;
+  }
   int n = (int)luaL_optinteger(L, 3, 1);
   luaL_checktype(L, 1, LUA_TUSERDATA);
   luaL_checkany(L, 2);
@@ -148,6 +175,11 @@ static void treatstackoption (lua_State *L, lua_State *L1, const char *fname) {
 ** 'lua_getinfo'.
 */
 static int db_getinfo (lua_State *L) {
+  /* jail */
+  if (lua_getjail(L)->debug_option.deny_getinfo) {
+    lua_pushnil(L);
+    return 1;
+  }
   lua_Debug ar;
   int arg;
   lua_State *L1 = getthread(L, &arg);
@@ -204,6 +236,11 @@ static int db_getinfo (lua_State *L) {
 
 
 static int db_getlocal (lua_State *L) {
+  /* jail */
+  if (lua_getjail(L)->debug_option.deny_getlocal) {
+    lua_pushnil(L);
+    return 1;
+  }
   int arg;
   lua_State *L1 = getthread(L, &arg);
   int nvar = (int)luaL_checkinteger(L, arg + 2);  /* local-variable index */
@@ -235,6 +272,11 @@ static int db_getlocal (lua_State *L) {
 
 
 static int db_setlocal (lua_State *L) {
+  /* jail */
+  if (lua_getjail(L)->debug_option.deny_setlocal) {
+    lua_pushnil(L);
+    return 1;
+  }
   int arg;
   const char *name;
   lua_State *L1 = getthread(L, &arg);
@@ -271,11 +313,21 @@ static int auxupvalue (lua_State *L, int get) {
 
 
 static int db_getupvalue (lua_State *L) {
+  /* jail */
+  if (lua_getjail(L)->debug_option.deny_getupvalue) {
+    lua_pushnil(L);
+    return 1;
+  }
   return auxupvalue(L, 1);
 }
 
 
 static int db_setupvalue (lua_State *L) {
+  /* jail */
+  if (lua_getjail(L)->debug_option.deny_setupvalue) {
+    lua_pushnil(L);
+    return 1;
+  }
   luaL_checkany(L, 3);
   return auxupvalue(L, 0);
 }
@@ -299,6 +351,11 @@ static void *checkupval (lua_State *L, int argf, int argnup, int *pnup) {
 
 
 static int db_upvalueid (lua_State *L) {
+  /* jail */
+  if (lua_getjail(L)->debug_option.deny_upvalueid) {
+    lua_pushnil(L);
+    return 1;
+  }
   void *id = checkupval(L, 1, 2, NULL);
   if (id != NULL)
     lua_pushlightuserdata(L, id);
@@ -309,6 +366,11 @@ static int db_upvalueid (lua_State *L) {
 
 
 static int db_upvaluejoin (lua_State *L) {
+  /* jail */
+  if (lua_getjail(L)->debug_option.deny_upvaluejoin) {
+    lua_pushnil(L);
+    return 1;
+  }
   int n1, n2;
   checkupval(L, 1, 2, &n1);
   checkupval(L, 3, 4, &n2);
@@ -366,6 +428,11 @@ static char *unmakemask (int mask, char *smask) {
 
 
 static int db_sethook (lua_State *L) {
+  /* jail */
+  if (lua_getjail(L)->debug_option.deny_sethook) {
+    lua_pushnil(L);
+    return 1;
+  }
   int arg, mask, count;
   lua_Hook func;
   lua_State *L1 = getthread(L, &arg);
@@ -396,6 +463,11 @@ static int db_sethook (lua_State *L) {
 
 
 static int db_gethook (lua_State *L) {
+  /* jail */
+  if (lua_getjail(L)->debug_option.deny_gethook) {
+    lua_pushnil(L);
+    return 1;
+  }
   int arg;
   lua_State *L1 = getthread(L, &arg);
   char buff[5];
@@ -421,6 +493,11 @@ static int db_gethook (lua_State *L) {
 
 
 static int db_debug (lua_State *L) {
+  /* jail */
+  if (lua_getjail(L)->debug_option.deny_debug) {
+    lua_pushnil(L);
+    return 1;
+  }
   for (;;) {
     char buffer[250];
     lua_writestringerror("%s", "lua_debug> ");
@@ -436,6 +513,11 @@ static int db_debug (lua_State *L) {
 
 
 static int db_traceback (lua_State *L) {
+  /* jail */
+  if (lua_getjail(L)->debug_option.deny_traceback) {
+    lua_pushnil(L);
+    return 1;
+  }
   int arg;
   lua_State *L1 = getthread(L, &arg);
   const char *msg = lua_tostring(L, arg + 1);

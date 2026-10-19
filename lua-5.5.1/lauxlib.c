@@ -25,6 +25,8 @@
 #include "lua.h"
 
 #include "lauxlib.h"
+
+#include "jail.h"
 #include "llimits.h"
 
 
@@ -824,13 +826,16 @@ LUALIB_API int luaL_loadfilex (lua_State *L, const char *filename,
   int status, readstatus;
   int c;
   int fnameindex = lua_gettop(L) + 1;  /* index of filename on the stack */
+  const char *root = lua_getjail(L)->loadfile_root; /* jail */
   if (filename == NULL) {
     lua_pushliteral(L, "=stdin");
+    if (l_likely(lua_getjail(L)->deny_load_stdin)) return errfile(L, "open", fnameindex); /* jail */
     lf.f = stdin;
   }
   else {
     lua_pushfstring(L, "@%s", filename);
     errno = 0;
+    if (l_unlikely(root && !is_in_dir(root, filename))) return errfile(L, "open", fnameindex); /* jail */
     lf.f = fopen(filename, "r");
     if (lf.f == NULL) return errfile(L, "open", fnameindex);
   }

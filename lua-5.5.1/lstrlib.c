@@ -24,6 +24,8 @@
 
 #include "lauxlib.h"
 #include "lualib.h"
+
+#include "jail.h"
 #include "llimits.h"
 
 
@@ -148,6 +150,9 @@ static int str_rep (lua_State *L) {
     return luaL_error(L, "resulting string too large");
   else {
     size_t totallen = (cast_sizet(n) * (len + lsep)) - lsep;
+    const JailOption *jail = lua_getjail(L);  /* jail */
+    if (l_unlikely(jail->rep_max_limited && totallen > jail->rep_max))
+      return luaL_error(L, "resulting string too large");
     luaL_Buffer b;
     char *p = luaL_buffinitsize(L, &b, totallen);
     while (n-- > 1) {  /* first n-1 copies (followed by separator) */

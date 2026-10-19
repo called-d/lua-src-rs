@@ -15,12 +15,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
 #include "lua.h"
 
 #include "lauxlib.h"
 #include "lualib.h"
 #include "llimits.h"
+
+#include "jail.h"
 
 
 /*
@@ -143,6 +146,11 @@
 
 
 static int os_execute (lua_State *L) {
+  if (lua_getjail(L)->deny_popen) { /* jail */
+    errno = 1;
+    return luaL_execresult(L, 1);
+  }
+
   const char *cmd = luaL_optstring(L, 1, NULL);
   int stat;
   errno = 0;
@@ -158,6 +166,13 @@ static int os_execute (lua_State *L) {
 
 static int os_remove (lua_State *L) {
   const char *filename = luaL_checkstring(L, 1);
+  /* jail */
+  const char *root = lua_getjail(L)->ioroot;
+  if (l_unlikely(root && !is_in_dir_allow_tmp(L, root, filename))) {
+    errno = 1;
+    return luaL_fileresult(L, 0, filename);
+  }
+
   errno = 0;
   return luaL_fileresult(L, remove(filename) == 0, filename);
 }
@@ -166,12 +181,25 @@ static int os_remove (lua_State *L) {
 static int os_rename (lua_State *L) {
   const char *fromname = luaL_checkstring(L, 1);
   const char *toname = luaL_checkstring(L, 2);
+  /* jail */
+  const char *root = lua_getjail(L)->ioroot;
+  if (l_unlikely(root && !is_in_dir_allow_tmp(L, root, fromname))) {
+    errno = 1;
+    return luaL_fileresult(L, 0, fromname);
+  }
+  if (l_unlikely(root && !is_in_dir_allow_tmp(L, root, toname))) {
+    errno = 1;
+    return luaL_fileresult(L, 0, toname);
+  }
+
   errno = 0;
   return luaL_fileresult(L, rename(fromname, toname) == 0, NULL);
 }
 
 
 static int os_tmpname (lua_State *L) {
+  /* This function does not need to be jailed */
+
 #if !defined(__wasi__)
   char buff[LUA_TMPNAMBUFSIZE];
   int err;
@@ -187,14 +215,33 @@ static int os_tmpname (lua_State *L) {
 
 
 static int os_getenv (lua_State *L) {
-  lua_pushstring(L, getenv(luaL_checkstring(L, 1)));  /* if NULL push nil */
+  /* jail */
+  if (lua_getjail(L)->deny_getenv) {
+    lua_pushnil(L);
+    return 1;
+  }
+  const char *prefix = lua_getjail(L)->getenv_prefix;
+  const char *envname = luaL_checkstring(L, 1);
+  if (prefix && (envname != strstr(envname, prefix))) {
+    lua_pushnil(L);
+    return 1;
+  }
+  lua_pushstring(L, getenv(envname));  /* if NULL push nil */
   return 1;
 }
 
 
 static int os_clock (lua_State *L) {
 #if !defined(__wasi__)
-  lua_pushnumber(L, ((lua_Number)clock())/(lua_Number)CLOCKS_PER_SEC);
+  lua_Number c = ((lua_Number)clock())/(lua_Number)CLOCKS_PER_SEC;
+  /* jail */
+  int p = lua_getjail(L)->clock_precision;
+  if (p > 0) {
+    c = (lua_Number)(floor(c*pow(10,6-p))/pow(10,6-p));
+  }
+  lua_pushnumber(L, c);
+  lua_CFunction f = lua_getjail(L)->clock_overwrite;
+  if (f) return (*f)(L);
   return 1;
 #else
   luaL_error(L, "not supported on WASI");
@@ -311,11 +358,15 @@ static time_t l_checktime (lua_State *L, int arg) {
 /* maximum size for an individual 'strftime' item */
 #define SIZETIMEFMT	250
 
+static time_t time_(lua_State *L, time_t *timer) {
+    if (lua_getjail(L)->deny_time) return 0;
+    return time(timer);
+}
 
 static int os_date (lua_State *L) {
   size_t slen;
   const char *s = luaL_optlstring(L, 1, "%c", &slen);
-  time_t t = luaL_opt(L, l_checktime, 2, time(NULL));
+  time_t t = luaL_opt(L, l_checktime, 2, time_(L, NULL)); /* jail */
   const char *se = s + slen;  /* 's' end */
   struct tm tmr, *stm;
   if (*s == '!') {  /* UTC? */
@@ -358,7 +409,7 @@ static int os_date (lua_State *L) {
 static int os_time (lua_State *L) {
   time_t t;
   if (lua_isnoneornil(L, 1))  /* called without args? */
-    t = time(NULL);  /* get current time */
+    t = time_(L, NULL);  /* get current time */ /* jail */
   else {
     struct tm ts;
     luaL_checktype(L, 1, LUA_TTABLE);
@@ -392,6 +443,12 @@ static int os_difftime (lua_State *L) {
 
 
 static int os_setlocale (lua_State *L) {
+  /* jail */
+  if (l_unlikely(lua_getjail(L)->deny_setlocale)) {
+    lua_pushnil(L);
+    return 1;
+  }
+
   static const int cat[] = {LC_ALL, LC_COLLATE, LC_CTYPE, LC_MONETARY,
                       LC_NUMERIC, LC_TIME};
   static const char *const catnames[] = {"all", "collate", "ctype", "monetary",
@@ -404,6 +461,12 @@ static int os_setlocale (lua_State *L) {
 
 
 static int os_exit (lua_State *L) {
+  /* jail */
+  if (l_unlikely(lua_getjail(L)->deny_exit)) {
+    lua_pushnil(L);
+    return 1;
+  }
+
   int status;
   if (lua_isboolean(L, 1))
     status = (lua_toboolean(L, 1) ? EXIT_SUCCESS : EXIT_FAILURE);
