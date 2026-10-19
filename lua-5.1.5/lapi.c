@@ -92,14 +92,20 @@ void luaA_pushobject (lua_State *L, const TValue *o) {
 }
 
 
+static void growstack (lua_State *L, void *ud) {
+  luaD_growstack(L, *(int *)ud);
+}
+
+
 LUA_API int lua_checkstack (lua_State *L, int size) {
   int res = 1;
   lua_lock(L);
   if (size > LUAI_MAXCSTACK || (L->top - L->base + size) > LUAI_MAXCSTACK)
     res = 0;  /* stack overflow */
   else if (size > 0) {
-    luaD_checkstack(L, size);
-    if (L->ci->top < L->top + size)
+    if (L->stack_last - L->top <= size)
+      res = (luaD_rawrunprotected(L, &growstack, &size) == 0);
+    if (res && L->ci->top < L->top + size)
       L->ci->top = L->top + size;
   }
   lua_unlock(L);
@@ -211,7 +217,7 @@ LUA_API void lua_replace (lua_State *L, int idx) {
   api_checkvalidindex(L, o);
   if (idx == LUA_ENVIRONINDEX) {
     Closure *func = curr_func(L);
-    api_check(L, ttistable(L->top - 1)); 
+    api_check(L, ttistable(L->top - 1));
     func->c.env = hvalue(L->top - 1);
     luaC_barrier(L, func, L->top - 1);
   }
@@ -771,7 +777,7 @@ LUA_API int lua_setfenv (lua_State *L, int idx) {
 
 #define checkresults(L,na,nr) \
      api_check(L, (nr) == LUA_MULTRET || (L->ci->top - L->top >= (nr) - (na)))
-	
+
 
 LUA_API void lua_call (lua_State *L, int nargs, int nresults) {
   StkId func;

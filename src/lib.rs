@@ -10,6 +10,7 @@ pub enum Version {
     Lua52,
     Lua53,
     Lua54,
+    Lua55,
 }
 pub use self::Version::*;
 
@@ -27,6 +28,7 @@ pub struct Build {
 pub struct Artifacts {
     include_dir: PathBuf,
     lib_dir: PathBuf,
+    lua_lib: String,
     libs: Vec<String>,
 }
 
@@ -106,7 +108,7 @@ impl Build {
         let target = self.target.as_ref().ok_or("TARGET is not set")?;
         let out_dir = self.out_dir.as_ref().ok_or("OUT_DIR is not set")?;
         let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let mut source_dir = manifest_dir.join(version.source_dir());
+        let source_dir = manifest_dir.join(version.source_dir());
         let lib_dir = out_dir.join("lib");
         let include_dir = out_dir.join("include");
 
@@ -130,12 +132,23 @@ impl Build {
             }
         }
 
+        let lua_lib = version.lib_name().to_string();
+        let mut libs = vec![lua_lib.clone()];
         match target {
             _ if target.contains("linux") => {
                 config.define("LUA_USE_LINUX", None);
             }
-            _ if target.ends_with("bsd") => {
+            _ if target.ends_with("bsd")
+                || target.contains("netbsd")
+                || target.contains("dragonfly") =>
+            {
                 config.define("LUA_USE_LINUX", None);
+            }
+            _ if target.ends_with("illumos") => {
+                config.define("LUA_USE_POSIX", None);
+            }
+            _ if target.ends_with("solaris") => {
+                config.define("LUA_USE_POSIX", None);
             }
             _ if target.contains("apple-darwin") => {
                 match version {
@@ -145,7 +158,7 @@ impl Build {
             }
             _ if target.contains("apple-ios") => {
                 match version {
-                    Lua54 => config.define("LUA_USE_IOS", None),
+                    Lua54 | Lua55 => config.define("LUA_USE_IOS", None),
                     _ => config.define("LUA_USE_POSIX", None),
                 };
             }
@@ -156,43 +169,35 @@ impl Build {
             _ if target.ends_with("emscripten") => {
                 config
                     .define("LUA_USE_POSIX", None)
-                    .cpp(true)
-                    .flag("-fexceptions"); // Enable exceptions to be caught
+                    .flag("-sSUPPORT_LONGJMP=wasm"); // Enable setjmp/longjmp support (WASM-specific)
+            }
+            _ if target.contains("wasi") => {
+                // WASI is posix-like, but further patches are needed to the Lua
+                // source to get it compiling.
+                config.define("LUA_USE_POSIX", None);
 
-                let cpp_source_dir = out_dir.join("cpp_source");
-                if cpp_source_dir.exists() {
-                    fs::remove_dir_all(&cpp_source_dir)
-                        .context(|| format!("Cannot remove '{}'", cpp_source_dir.display()))?;
-                }
-                fs::create_dir_all(&cpp_source_dir)
-                    .context(|| format!("Cannot create '{}'", cpp_source_dir.display()))?;
+                // Bring in just enough signal-handling support to get Lua at
+                // least compiling, but WASI in general does not support
+                // signals.
+                config.define("_WASI_EMULATED_SIGNAL", None);
+                libs.push("wasi-emulated-signal".to_string());
 
-                for file in fs::read_dir(&source_dir)
-                    .context(|| format!("Cannot read '{}'", source_dir.display()))?
-                {
-                    let file = file?;
-                    let filename = file.file_name();
-                    let filename = &*filename.to_string_lossy();
-                    let src_file = source_dir.join(file.file_name());
-                    let dst_file = cpp_source_dir.join(file.file_name());
-
-                    let mut content = fs::read(&src_file)
-                        .context(|| format!("Cannot read '{}'", src_file.display()))?;
-                    if ["lauxlib.h", "lua.h", "lualib.h"].contains(&filename) {
-                        content.splice(0..0, b"extern \"C\" {\n".to_vec());
-                        content.extend(b"\n}".to_vec())
-                    }
-                    fs::write(&dst_file, content)
-                        .context(|| format!("Cannot write to '{}'", dst_file.display()))?;
-                }
-                source_dir = cpp_source_dir
+                // https://github.com/WebAssembly/wasi-sdk/blob/main/SetjmpLongjmp.md
+                // for information about getting setjmp/longjmp working.
+                config.flag("-mllvm").flag("-wasm-enable-eh");
+                config.flag("-mllvm").flag("-wasm-use-legacy-eh=false");
+                config.flag("-mllvm").flag("-wasm-enable-sjlj");
+                libs.push("setjmp".to_string());
             }
             _ => Err(format!("don't know how to build Lua for {target}"))?,
         }
 
         if let Lua54 = version {
             config.define("LUA_COMPAT_5_3", None);
-            #[cfg(feature = "ucid")]
+        }
+
+        #[cfg(feature = "ucid")]
+        if let Lua54 | Lua55 = version {
             config.define("LUA_UCID", None);
         }
 
@@ -216,11 +221,11 @@ impl Build {
 
         config
             .include(&source_dir)
-            .flag("-w") // Suppress all warnings
+            .warnings(false) // Suppress all warnings
             .flag_if_supported("-fno-common") // Compile common globals like normal definitions
             .add_files_by_ext(&source_dir, "c")?
             .out_dir(&lib_dir)
-            .try_compile(version.lib_name())?;
+            .try_compile(&lua_lib)?;
 
         for f in &["lauxlib.h", "lua.h", "luaconf.h", "lualib.h"] {
             let from = source_dir.join(f);
@@ -232,27 +237,30 @@ impl Build {
         Ok(Artifacts {
             include_dir,
             lib_dir,
-            libs: vec![version.lib_name().to_string()],
+            lua_lib,
+            libs,
         })
     }
 }
 
 impl Version {
-    fn source_dir(&self) -> &str {
+    fn source_dir(&self) -> &'static str {
         match self {
             Lua51 => "lua-5.1.5",
             Lua52 => "lua-5.2.4",
             Lua53 => "lua-5.3.6",
-            Lua54 => "lua-5.4.8",
+            Lua54 => "lua-5.4.9",
+            Lua55 => "lua-5.5.1",
         }
     }
 
-    fn lib_name(&self) -> &str {
+    fn lib_name(&self) -> &'static str {
         match self {
             Lua51 => "lua5.1",
             Lua52 => "lua5.2",
             Lua53 => "lua5.3",
             Lua54 => "lua5.4",
+            Lua55 => "lua5.5",
         }
     }
 }
@@ -279,9 +287,12 @@ impl Artifacts {
     /// about the location of the Lua libraries and how to link them.
     pub fn print_cargo_metadata(&self) {
         println!("cargo:rustc-link-search=native={}", self.lib_dir.display());
-        for lib in self.libs.iter() {
-            println!("cargo:rustc-link-lib=static={lib}");
+        println!("cargo:rustc-link-lib=static={}", self.lua_lib);
+        for lib in self.libs.iter().filter(|lib| *lib != &self.lua_lib) {
+            println!("cargo:rustc-link-lib=static:-bundle={lib}");
         }
+        println!("cargo:include={}", self.include_dir.display());
+        println!("cargo:lib={}", self.lib_dir.display());
     }
 }
 

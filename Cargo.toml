@@ -1,14 +1,14 @@
 [package]
 name = "lua-src"
-version = "548.1.1"
+version = "551.0.2"
 authors = ["Aleksandr Orlenko <zxteam@protonmail.com>"]
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/mlua-rs/lua-src-rs"
-keywords = ["lua", "lua51", "lua52", "lua53", "lua54"]
+keywords = ["lua", "lua51", "lua54", "lua55"] # Max 5 keywords
 readme = "README.md"
 license = "MIT"
 description = """
-Sources of Lua 5.1/5.2/5.3/5.4 and logic to build them.
+Sources of Lua 5.1-5.5 and logic to build them.
 """
 
 [features]
