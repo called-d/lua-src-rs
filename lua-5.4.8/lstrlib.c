@@ -25,6 +25,8 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+#include "jail.h"
+
 
 /*
 ** maximum number of captures that a pattern can do during
@@ -1702,7 +1704,7 @@ static int str_packsize (lua_State *L) {
   const char *fmt = luaL_checkstring(L, 1);  /* format string */
   size_t totalsize = 0;  /* accumulate total size of result */
   size_t maxsize = MAXSIZE;
-  if (get_rep_limited()) maxsize = get_rep_max(); /* jail */
+  if (lua_getjail(L)->rep_max_limited) maxsize = lua_getjail(L)->rep_max; /* jail */
   initheader(L, &h);
   while (*fmt != '\0') {
     int size, ntoalign;

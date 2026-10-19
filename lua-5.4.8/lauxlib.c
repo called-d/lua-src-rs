@@ -789,10 +789,10 @@ LUALIB_API int luaL_loadfilex (lua_State *L, const char *filename,
   int status, readstatus;
   int c;
   int fnameindex = lua_gettop(L) + 1;  /* index of filename on the stack */
-  const char *root = get_loadfileroot(); /* jail */
+  const char *root = lua_getjail(L)->loadfile_root; /* jail */
   if (filename == NULL) {
     lua_pushliteral(L, "=stdin");
-    if (l_likely(get_deny_load_stdin())) return errfile(L, "open", fnameindex); /* jail */
+    if (l_likely(lua_getjail(L)->deny_load_stdin)) return errfile(L, "open", fnameindex); /* jail */
     lf.f = stdin;
   }
   else {

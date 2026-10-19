@@ -143,7 +143,7 @@
 
 
 static int os_execute (lua_State *L) {
-  if (get_deny_popen()) { /* jail */
+  if (lua_getjail(L)->deny_popen) { /* jail */
     errno = 1;
     return luaL_execresult(L, 1);
   }
@@ -164,8 +164,8 @@ static int os_execute (lua_State *L) {
 static int os_remove (lua_State *L) {
   const char *filename = luaL_checkstring(L, 1);
   /* jail */
-  const char *root = get_ioroot();
-  if (l_unlikely(root && !is_in_dir_allow_tmp(root, filename))) {
+  const char *root = lua_getjail(L)->ioroot;
+  if (l_unlikely(root && !is_in_dir_allow_tmp(L, root, filename))) {
     errno = 1;
     return luaL_fileresult(L, 0, filename);
   }
@@ -179,12 +179,12 @@ static int os_rename (lua_State *L) {
   const char *fromname = luaL_checkstring(L, 1);
   const char *toname = luaL_checkstring(L, 2);
   /* jail */
-  const char *root = get_ioroot();
-  if (l_unlikely(root && !is_in_dir_allow_tmp(root, fromname))) {
+  const char *root = lua_getjail(L)->ioroot;
+  if (l_unlikely(root && !is_in_dir_allow_tmp(L, root, fromname))) {
     errno = 1;
     return luaL_fileresult(L, 0, fromname);
   }
-  if (l_unlikely(root && !is_in_dir_allow_tmp(root, toname))) {
+  if (l_unlikely(root && !is_in_dir_allow_tmp(L, root, toname))) {
     errno = 1;
     return luaL_fileresult(L, 0, toname);
   }
@@ -209,11 +209,11 @@ static int os_tmpname (lua_State *L) {
 
 static int os_getenv (lua_State *L) {
   /* jail */
-  if (get_deny_getenv()) {
+  if (lua_getjail(L)->deny_getenv) {
     lua_pushnil(L);
     return 1;
   }
-  const char *prefix = get_getenv_prefix();
+  const char *prefix = lua_getjail(L)->getenv_prefix;
   const char *envname = luaL_checkstring(L, 1);
   if (prefix && (envname != strstr(envname, prefix))) {
     lua_pushnil(L);
@@ -227,12 +227,12 @@ static int os_getenv (lua_State *L) {
 static int os_clock (lua_State *L) {
   lua_Number c = ((lua_Number)clock())/(lua_Number)CLOCKS_PER_SEC;
   /* jail */
-  int p = get_clock_precision();
+  int p = lua_getjail(L)->clock_precision;
   if (p > 0) {
     c = (lua_Number)(floor(c*pow(10,6-p))/pow(10,6-p));
   }
   lua_pushnumber(L, c);
-  lua_CFunction f = get_clock_overwrite();
+  lua_CFunction f = lua_getjail(L)->clock_overwrite;
   if (f) return (*f)(L);
   return 1;
 }
@@ -347,15 +347,15 @@ static time_t l_checktime (lua_State *L, int arg) {
 /* maximum size for an individual 'strftime' item */
 #define SIZETIMEFMT	250
 
-time_t time_(time_t *timer) {
-    if (get_deny_time()) return 0;
+static time_t time_(lua_State *L, time_t *timer) {
+    if (lua_getjail(L)->deny_time) return 0;
     return time(timer);
 }
 
 static int os_date (lua_State *L) {
   size_t slen;
   const char *s = luaL_optlstring(L, 1, "%c", &slen);
-  time_t t = luaL_opt(L, l_checktime, 2, time_(NULL)); /* jail */
+  time_t t = luaL_opt(L, l_checktime, 2, time_(L, NULL)); /* jail */
   const char *se = s + slen;  /* 's' end */
   struct tm tmr, *stm;
   if (*s == '!') {  /* UTC? */
@@ -397,7 +397,7 @@ static int os_date (lua_State *L) {
 static int os_time (lua_State *L) {
   time_t t;
   if (lua_isnoneornil(L, 1))  /* called without args? */
-    t = time_(NULL);  /* get current time */ /* jail */
+    t = time_(L, NULL);  /* get current time */ /* jail */
   else {
     struct tm ts;
     luaL_checktype(L, 1, LUA_TTABLE);
@@ -432,7 +432,7 @@ static int os_difftime (lua_State *L) {
 
 static int os_setlocale (lua_State *L) {
   /* jail */
-  if (l_unlikely(get_deny_setlocale())) {
+  if (l_unlikely(lua_getjail(L)->deny_setlocale)) {
     lua_pushnil(L);
     return 1;
   }
@@ -450,7 +450,7 @@ static int os_setlocale (lua_State *L) {
 
 static int os_exit (lua_State *L) {
   /* jail */
-  if (l_unlikely(get_deny_exit())) {
+  if (l_unlikely(lua_getjail(L)->deny_exit)) {
     lua_pushnil(L);
     return 1;
   }

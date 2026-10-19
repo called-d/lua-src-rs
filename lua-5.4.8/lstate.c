@@ -19,6 +19,7 @@
 #include "ldebug.h"
 #include "ldo.h"
 #include "lfunc.h"
+#include "jail.h"
 #include "lgc.h"
 #include "llex.h"
 #include "lmem.h"
@@ -278,6 +279,7 @@ static void close_state (lua_State *L) {
     luaC_freeallobjects(L);  /* collect all objects */
     luai_userstateclose(L);
   }
+  luaJ_freejail(L);  /* jail */
   luaM_freearray(L, G(L)->strt.hash, G(L)->strt.size);
   freestack(L);
   lua_assert(gettotalbytes(g) == sizeof(LG));
@@ -379,6 +381,7 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
   g->ud = ud;
   g->warnf = NULL;
   g->ud_warn = NULL;
+  g->jail = NULL;  /* jail */
   g->mainthread = L;
   g->seed = luai_makeseed(L);
   g->gcstp = GCSTPGC;  /* no GC while building state */

@@ -317,8 +317,8 @@ static void setpath (lua_State *L, const char *fieldname,
   setprogdir(L);
 
   /* jail */
-  const char *path_override = get_path_override();
-  const char *cpath_override = get_cpath_override();
+  const char *path_override = lua_getjail(L)->path_override;
+  const char *cpath_override = lua_getjail(L)->cpath_override;
   if ((path_override != NULL) && (strcmp(fieldname, "path") == 0)) {
     lua_pop(L, 1);
     lua_pushstring(L, path_override);
@@ -416,7 +416,7 @@ static int lookforfunc (lua_State *L, const char *path, const char *sym) {
 
 static int ll_loadlib (lua_State *L) {
   /* jail */
-  if (l_unlikely(get_deny_loadlib())) {
+  if (l_unlikely(lua_getjail(L)->deny_loadlib)) {
     lua_pushnil(L);
     return 1;
   }
@@ -518,7 +518,7 @@ static const char *searchpath (lua_State *L, const char *name,
 
 static int ll_searchpath (lua_State *L) {
   /* jail */
-  if (l_unlikely(get_deny_searchpath())) {
+  if (l_unlikely(lua_getjail(L)->deny_searchpath)) {
     lua_pushnil(L);
     return 1;
   }
@@ -543,8 +543,8 @@ static const char *findfile (lua_State *L, const char *name,
   path = lua_tostring(L, -1);
 
   /* jail */
-  const char *path_override = get_path_override();
-  const char *cpath_override = get_cpath_override();
+  const char *path_override = lua_getjail(L)->path_override;
+  const char *cpath_override = lua_getjail(L)->cpath_override;
   if ((path_override != NULL) && (strcmp(pname, "path") == 0)) {
     path = path_override;
   }
@@ -683,7 +683,7 @@ static void findloader (lua_State *L, const char *name) {
 
 static int ll_require (lua_State *L) {
   /* jail */
-  if (l_unlikely(get_deny_require())) {
+  if (l_unlikely(lua_getjail(L)->deny_require)) {
     lua_pushnil(L);
     return 1;
   }
@@ -758,7 +758,7 @@ static void createsearcherstable (lua_State *L) {
   }
 
   /* jail */
-  lua_Package_Searchers_Modifier f = get_package_searchers_modifier_func();
+  lua_Package_Searchers_Modifier f = lua_getjail(L)->package_searchers_modifier;
   if (f != NULL) f(L);
 
   lua_setfield(L, -2, "searchers");  /* put it in field 'searchers' */

@@ -206,7 +206,7 @@ static int luaB_collectgarbage (lua_State *L) {
     LUA_GCCOUNT, LUA_GCSTEP, LUA_GCSETPAUSE, LUA_GCSETSTEPMUL,
     LUA_GCISRUNNING, LUA_GCGEN, LUA_GCINC};
   /* jail */
-  if (l_unlikely(get_deny_collectgarbage())) {
+  if (l_unlikely(lua_getjail(L)->deny_collectgarbage)) {
     lua_pushnil(L);
     return 1;
   }

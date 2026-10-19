@@ -42,7 +42,7 @@ static void checkstack (lua_State *L, lua_State *L1, int n) {
 
 static int db_getregistry (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_getregistry) {
+  if (lua_getjail(L)->debug_option.deny_getregistry) {
     lua_pushnil(L);
     return 1;
   }
@@ -53,7 +53,7 @@ static int db_getregistry (lua_State *L) {
 
 static int db_getmetatable (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_getmetatable) {
+  if (lua_getjail(L)->debug_option.deny_getmetatable) {
     lua_pushnil(L);
     return 1;
   }
@@ -67,7 +67,7 @@ static int db_getmetatable (lua_State *L) {
 
 static int db_setmetatable (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_setmetatable) {
+  if (lua_getjail(L)->debug_option.deny_setmetatable) {
     lua_pushnil(L);
     return 1;
   }
@@ -81,7 +81,7 @@ static int db_setmetatable (lua_State *L) {
 
 static int db_getuservalue (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_getuservalue) {
+  if (lua_getjail(L)->debug_option.deny_getuservalue) {
     lua_pushnil(L);
     return 1;
   }
@@ -98,7 +98,7 @@ static int db_getuservalue (lua_State *L) {
 
 static int db_setuservalue (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_setuservalue) {
+  if (lua_getjail(L)->debug_option.deny_setuservalue) {
     lua_pushnil(L);
     return 1;
   }
@@ -175,7 +175,7 @@ static void treatstackoption (lua_State *L, lua_State *L1, const char *fname) {
 */
 static int db_getinfo (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_getinfo) {
+  if (lua_getjail(L)->debug_option.deny_getinfo) {
     lua_pushnil(L);
     return 1;
   }
@@ -234,7 +234,7 @@ static int db_getinfo (lua_State *L) {
 
 static int db_getlocal (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_getlocal) {
+  if (lua_getjail(L)->debug_option.deny_getlocal) {
     lua_pushnil(L);
     return 1;
   }
@@ -270,7 +270,7 @@ static int db_getlocal (lua_State *L) {
 
 static int db_setlocal (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_setlocal) {
+  if (lua_getjail(L)->debug_option.deny_setlocal) {
     lua_pushnil(L);
     return 1;
   }
@@ -311,7 +311,7 @@ static int auxupvalue (lua_State *L, int get) {
 
 static int db_getupvalue (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_getupvalue) {
+  if (lua_getjail(L)->debug_option.deny_getupvalue) {
     lua_pushnil(L);
     return 1;
   }
@@ -321,7 +321,7 @@ static int db_getupvalue (lua_State *L) {
 
 static int db_setupvalue (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_setupvalue) {
+  if (lua_getjail(L)->debug_option.deny_setupvalue) {
     lua_pushnil(L);
     return 1;
   }
@@ -349,7 +349,7 @@ static void *checkupval (lua_State *L, int argf, int argnup, int *pnup) {
 
 static int db_upvalueid (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_upvalueid) {
+  if (lua_getjail(L)->debug_option.deny_upvalueid) {
     lua_pushnil(L);
     return 1;
   }
@@ -364,7 +364,7 @@ static int db_upvalueid (lua_State *L) {
 
 static int db_upvaluejoin (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_upvaluejoin) {
+  if (lua_getjail(L)->debug_option.deny_upvaluejoin) {
     lua_pushnil(L);
     return 1;
   }
@@ -426,7 +426,7 @@ static char *unmakemask (int mask, char *smask) {
 
 static int db_sethook (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_sethook) {
+  if (lua_getjail(L)->debug_option.deny_sethook) {
     lua_pushnil(L);
     return 1;
   }
@@ -461,7 +461,7 @@ static int db_sethook (lua_State *L) {
 
 static int db_gethook (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_gethook) {
+  if (lua_getjail(L)->debug_option.deny_gethook) {
     lua_pushnil(L);
     return 1;
   }
@@ -491,7 +491,7 @@ static int db_gethook (lua_State *L) {
 
 static int db_debug (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_debug) {
+  if (lua_getjail(L)->debug_option.deny_debug) {
     lua_pushnil(L);
     return 1;
   }
@@ -511,7 +511,7 @@ static int db_debug (lua_State *L) {
 
 static int db_traceback (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_traceback) {
+  if (lua_getjail(L)->debug_option.deny_traceback) {
     lua_pushnil(L);
     return 1;
   }
@@ -530,7 +530,7 @@ static int db_traceback (lua_State *L) {
 
 static int db_setcstacklimit (lua_State *L) {
   /* jail */
-  if (get_deny_debug().deny_setcstacklimit) {
+  if (lua_getjail(L)->debug_option.deny_setcstacklimit) {
     lua_pushnil(L);
     return 1;
   }
