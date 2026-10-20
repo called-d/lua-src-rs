@@ -37,9 +37,13 @@ typedef struct DebugLibJailOption {
     unsigned char deny_setcstacklimit;
 } DebugLibJailOption;
 
-// TODO
-// load
-// rawequal, rawget, rawlen, rawset
+/*
+** Not restricted on purpose:
+** - text chunks of 'load' grant nothing a script cannot already do
+**   (binary chunks are covered by 'deny_binary_chunk')
+** - 'rawequal', 'rawget', 'rawlen', 'rawset' only work on tables; pass
+**   read-only values from the host as userdata instead
+*/
 
 /*
 ** Jail settings of a Lua state. All zero (NULL) means no restriction.
