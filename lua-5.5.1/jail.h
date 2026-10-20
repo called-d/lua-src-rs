@@ -83,6 +83,8 @@ typedef struct JailOption {
     unsigned char deny_searchpath;
     // os.time
     unsigned char deny_time;
+    // load / loadfile / dofile / require: binary chunks
+    unsigned char deny_binary_chunk;
     // debug
     DebugLibJailOption debug_option;
 } JailOption;

@@ -33,6 +33,8 @@
 #include "lvm.h"
 #include "lzio.h"
 
+#include "jail.h"
+
 
 
 #define errorstatus(s)	((s) > LUA_YIELD)
@@ -1113,6 +1115,15 @@ struct SParser {  /* data to 'f_parser' */
 };
 
 
+/* jail */
+static void checkjailbinary (lua_State *L) {
+  if (l_unlikely(lua_getjail(L)->deny_binary_chunk)) {
+    luaO_pushfstring(L, "attempt to load a binary chunk (denied by jail)");
+    luaD_throw(L, LUA_ERRSYNTAX);
+  }
+}
+
+
 static void checkmode (lua_State *L, const char *mode, const char *x) {
   if (strchr(mode, x[0]) == NULL) {
     luaO_pushfstring(L,
@@ -1139,6 +1150,7 @@ static void f_parser (lua_State *L, void *ud) {
   c = zgetc(p->z);  /* read first character */
   if (c == LUA_SIGNATURE[0]) {
     int fixed = 0;
+    checkjailbinary(L);  /* jail */
     if (strchr(mode, 'B') != NULL)
       fixed = 1;
     else
