@@ -16,6 +16,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <sys/stat.h>
 
 #include "lua.h"
 
@@ -177,6 +178,13 @@ static int os_remove (lua_State *L) {
 }
 
 
+/* jail */
+static int isdir (const char *fname) {
+  struct stat st;
+  return stat(fname, &st) == 0 && (st.st_mode & S_IFMT) == S_IFDIR;
+}
+
+
 static int os_rename (lua_State *L) {
   const char *fromname = luaL_checkstring(L, 1);
   const char *toname = luaL_checkstring(L, 2);
@@ -189,6 +197,18 @@ static int os_rename (lua_State *L) {
   if (l_unlikely(root && !is_in_dir_allow_tmp(L, root, toname))) {
     errno = 1;
     return luaL_fileresult(L, 0, toname);
+  }
+  /* renaming changes what both names can read or write */
+  /* (not for directories) */
+  if (!isdir(fromname)) {
+    if (l_unlikely(!test_write_extension_allowlist(L, fromname))) {
+      errno = 1;
+      return luaL_fileresult(L, 0, fromname);
+    }
+    if (l_unlikely(!test_write_extension_allowlist(L, toname))) {
+      errno = 1;
+      return luaL_fileresult(L, 0, toname);
+    }
   }
 
   errno = 0;

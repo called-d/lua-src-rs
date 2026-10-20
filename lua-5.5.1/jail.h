@@ -5,8 +5,14 @@
 
 #include "lua.h"
 
-/* implemented by the embedder (mlua) */
+/*
+** implemented by the embedder (mlua)
+** 'f' is a file name as passed to 'fopen' (decoded the same way, with
+** links resolved); 'root' is UTF-8. They return 0 when unsure.
+*/
 extern int (is_in_dir) (const char *root, const char *f);
+/* the temporary directory ('os.tmpname') */
+extern int (is_in_tmp_dir) (const char *f);
 
 typedef void (*lua_Package_Searchers_Modifier) (lua_State *L);
 

@@ -260,18 +260,25 @@ static LStream *newfile (lua_State *L) {
 }
 
 
+/* jail: "r" reads, "w" / "a" write, and "+" does both */
+static int test_mode_extension_allowlist (lua_State *L, const char *fname,
+                                          const char *mode) {
+  int update = strchr(mode, '+') != NULL;
+  if ((mode[0] == 'r' || update) && !test_read_extension_allowlist(L, fname))
+    return 0;
+  if ((mode[0] != 'r' || update) && !test_write_extension_allowlist(L, fname))
+    return 0;
+  return 1;
+}
+
+
 static void opencheck (lua_State *L, const char *fname, const char *mode) {
   /* jail */
   const char *root = lua_getjail(L)->ioroot;
   if (l_unlikely(root && !is_in_dir_allow_tmp(L, root, fname)))
     return luaL_error(L, "cannot open file '%s' (%s)", fname, strerror(1));
-  if (strchr(mode, 'r') != NULL) {
-    if (!test_read_extension_allowlist(L, fname))
-      return luaL_error(L, "cannot open file '%s' (%s)", fname, "extension is not in allowlist");
-  } else {
-    if (!test_write_extension_allowlist(L, fname))
-      return luaL_error(L, "cannot open file '%s' (%s)", fname, "extension is not in allowlist");
-  }
+  if (!test_mode_extension_allowlist(L, fname, mode))
+    return luaL_error(L, "cannot open file '%s' (%s)", fname, "extension is not in allowlist");
 
   LStream *p = newfile(L);
   p->f = fopen(fname, mode);
@@ -291,13 +298,8 @@ static int io_open (lua_State *L) {
 
   const char *mode = luaL_optstring(L, 2, "r");
   /* jail */
-  if (strchr(mode, 'r') != NULL) {
-    if (!test_read_extension_allowlist(L, filename))
-      return luaL_error(L, "cannot open file '%s' (%s)", filename, "extension is not in allowlist");
-  } else {
-    if (!test_write_extension_allowlist(L, filename))
-      return luaL_error(L, "cannot open file '%s' (%s)", filename, "extension is not in allowlist");
-  }
+  if (!test_mode_extension_allowlist(L, filename, mode))
+    return luaL_error(L, "cannot open file '%s' (%s)", filename, "extension is not in allowlist");
   LStream *p = newfile(L);
   const char *md = mode;  /* to traverse/check mode */
   luaL_argcheck(L, l_checkmode(md), 2, "invalid mode");
@@ -884,6 +886,13 @@ LUAMOD_API int luaopen_io (lua_State *L) {
   /* create (and set) default files */
   if (!lua_getjail(L)->deny_open_stdin) { /* jail */
     createstdfile(L, stdin, IO_INPUT, "stdin");
+  }
+  else {  /* jail: a closed handle; 'getiofile' does not check for nil */
+    LStream *p = newprefile(L);
+    p->f = NULL;
+    lua_pushvalue(L, -1);
+    lua_setfield(L, LUA_REGISTRYINDEX, IO_INPUT);
+    lua_setfield(L, -2, "stdin");
   }
   createstdfile(L, stdout, IO_OUTPUT, "stdout");
   createstdfile(L, stderr, NULL, "stderr");

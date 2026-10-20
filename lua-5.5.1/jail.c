@@ -15,20 +15,6 @@
 #include "lstate.h"
 
 
-#if !defined(LUA_USE_POSIX)	/* { */
-#include <Windows.h>
-#include <tchar.h>
-#include <stdio.h>
-#include <fileapi.h>
-static char *tmp_dir_root() {
-    char* buffer = malloc(MAX_PATH + 1);
-    if (buffer == NULL) return NULL;
-    DWORD r = GetTempPathA(MAX_PATH + 1, buffer);
-    if (r == 0 || r > MAX_PATH) buffer[0] = '\0';
-    return buffer;
-}
-#endif				/* } */
-
 
 static const JailOption no_jail;  /* all zero: no restriction */
 
@@ -106,16 +92,7 @@ void luaJ_freejail (lua_State *L) {
 int is_in_dir_allow_tmp (lua_State *L, const char *root, const char *f) {
   int is_in = is_in_dir(root, f);
   if (is_in || lua_getjail(L)->deny_tmp) return is_in;
-  /* allow tmp */
-#if defined(LUA_USE_POSIX)
-  return is_in_dir("/tmp/", f);
-#else
-  char *tmproot = tmp_dir_root();
-  if (tmproot == NULL) return 0;
-  is_in = tmproot[0] != '\0' && is_in_dir(tmproot, f);
-  free(tmproot);
-  return is_in;
-#endif
+  return is_in_tmp_dir(f);  /* allow tmp */
 }
 
 
@@ -128,7 +105,8 @@ static int test_extension (const char *list, const char *fname) {
     char ext_[258];
     ext_[0] = ',';
     int i = 0;
-    while (ext[i] != '\0' && (i + 1) < sizeof(ext_) - 2) {
+    while (ext[i] != '\0') {
+        if ((i + 1) >= sizeof(ext_) - 2) return 0;  /* too long to be listed */
         ext_[i + 1] = tolower((unsigned char)ext[i]);
         i++;
     }
