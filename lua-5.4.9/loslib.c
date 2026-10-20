@@ -233,6 +233,24 @@ static int os_tmpname (lua_State *L) {
 }
 
 
+/* jail: does 'name' start with 'prefix'? Windows ignores the case of
+** environment variable names, so compare ASCII letters ignoring case there.
+** Other characters must match exactly, which can only deny more */
+static int jail_env_has_prefix (const char *name, const char *prefix) {
+  for (; *prefix; name++, prefix++) {
+#if defined(_WIN32)
+    unsigned char a = (unsigned char)*name, b = (unsigned char)*prefix;
+    if (a >= 'a' && a <= 'z') a -= 'a' - 'A';
+    if (b >= 'a' && b <= 'z') b -= 'a' - 'A';
+    if (a != b) return 0;
+#else
+    if (*name != *prefix) return 0;
+#endif
+  }
+  return 1;
+}
+
+
 static int os_getenv (lua_State *L) {
   /* jail */
   if (lua_getjail(L)->deny_getenv) {
@@ -241,7 +259,7 @@ static int os_getenv (lua_State *L) {
   }
   const char *prefix = lua_getjail(L)->getenv_prefix;
   const char *envname = luaL_checkstring(L, 1);
-  if (prefix && (envname != strstr(envname, prefix))) {
+  if (prefix && !jail_env_has_prefix(envname, prefix)) {
     lua_pushnil(L);
     return 1;
   }

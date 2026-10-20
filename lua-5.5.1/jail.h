@@ -58,7 +58,7 @@ typedef struct JailOption {
     // ",ext1,ext2," (lowercase)
     const char *read_extension_allowlist;
     const char *write_extension_allowlist;
-    // allow getenv with prefixed env only
+    // allow getenv with prefixed env only (ASCII case-insensitive on Windows)
     const char *getenv_prefix;
     // package library
     const char *path_override;
