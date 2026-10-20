@@ -11,7 +11,7 @@
 ** links resolved); 'root' is UTF-8. They return 0 when unsure.
 */
 extern int (is_in_dir) (const char *root, const char *f);
-/* the temporary directory ('os.tmpname') */
+/* files directly in the temporary directory ('os.tmpname'), not directories */
 extern int (is_in_tmp_dir) (const char *f);
 
 typedef void (*lua_Package_Searchers_Modifier) (lua_State *L);
@@ -43,6 +43,11 @@ typedef struct DebugLibJailOption {
 **   (binary chunks are covered by 'deny_binary_chunk')
 ** - 'rawequal', 'rawget', 'rawlen', 'rawset' only work on tables; pass
 **   read-only values from the host as userdata instead
+** - a file name is checked before 'fopen' opens it, so another process can
+**   replace it in between (TOCTOU); a script cannot, since it is single
+**   threaded and cannot make links
+** - hard links already in the allowed directories are not detected; whoever
+**   can place them there is not confined by the jail anyway
 */
 
 /*
