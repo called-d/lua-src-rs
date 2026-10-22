@@ -115,6 +115,13 @@ LUA_API int (lua_setjail) (lua_State *L, const JailOption *opt, size_t size);
 /* never NULL; returns an all-zero option if not jailed */
 LUA_API const JailOption *(lua_getjail) (lua_State *L);
 
+/*
+** Count one step of a C function (such as pattern matching) as an
+** instruction for the count hook, so that the hook can stop a script
+** stuck in it by raising an error. The hook cannot yield here.
+*/
+LUA_API void (lua_counthookstep) (lua_State *L);
+
 /* internal */
 extern void (luaJ_freejail) (lua_State *L);
 extern int (is_in_dir_allow_tmp) (lua_State *L, const char *root, const char *f);

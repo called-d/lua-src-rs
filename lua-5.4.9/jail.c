@@ -12,6 +12,9 @@
 #include "lua.h"
 
 #include "jail.h"
+#include "lapi.h"
+#include "ldebug.h"
+#include "ldo.h"
 #include "lstate.h"
 
 
@@ -80,6 +83,18 @@ LUA_API int lua_setjail (lua_State *L, const JailOption *opt, size_t size) {
   freejail(g, g->jail);
   g->jail = j;
   return 0;
+}
+
+/* as 'luaG_traceexec' does for the instructions of Lua functions */
+LUA_API void lua_counthookstep (lua_State *L) {
+  lua_lock(L);
+  if ((L->hookmask & LUA_MASKCOUNT) && --L->hookcount == 0) {
+    resethookcount(L);
+    incnny(L);  /* the C function cannot be resumed from the middle */
+    luaD_hook(L, LUA_HOOKCOUNT, -1, 0, 0);
+    decnny(L);
+  }
+  lua_unlock(L);
 }
 
 void luaJ_freejail (lua_State *L) {
