@@ -48,6 +48,19 @@ unsafe extern "C" {
     pub fn lua_getglobal(state: *mut c_void, k: *const c_char) -> c_int;
 }
 
+// The jail expects the embedder (mlua) to provide these; 0 means "unsure", so it denies.
+#[cfg(any(feature = "lua54", feature = "lua55"))]
+#[unsafe(no_mangle)]
+pub extern "C" fn is_in_dir(_root: *const c_char, _f: *const c_char) -> c_int {
+    0
+}
+
+#[cfg(any(feature = "lua54", feature = "lua55"))]
+#[unsafe(no_mangle)]
+pub extern "C" fn is_in_tmp_dir(_f: *const c_char) -> c_int {
+    0
+}
+
 #[cfg(feature = "lua55")]
 pub unsafe fn luaL_openlibs(state: *mut c_void) {
     luaL_openselectedlibs(state, !0, 0);
