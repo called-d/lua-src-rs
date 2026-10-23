@@ -276,9 +276,9 @@ static void opencheck (lua_State *L, const char *fname, const char *mode) {
   /* jail */
   const char *root = lua_getjail(L)->ioroot;
   if (l_unlikely(root && !is_in_dir_allow_tmp(L, root, fname)))
-    return luaL_error(L, "cannot open file '%s' (%s)", fname, strerror(1));
+    luaL_error(L, "cannot open file '%s' (%s)", fname, strerror(1));
   if (!test_mode_extension_allowlist(L, fname, mode))
-    return luaL_error(L, "cannot open file '%s' (%s)", fname, "extension is not in allowlist");
+    luaL_error(L, "cannot open file '%s' (%s)", fname, "extension is not in allowlist");
 
   LStream *p = newfile(L);
   p->f = fopen(fname, mode);
